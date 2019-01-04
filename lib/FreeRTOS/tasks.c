@@ -323,8 +323,7 @@ typedef struct tskTaskControlBlock
 
 	#if( configUSE_TASK_NOTIFICATION_MESSAGES == 1 )
 		uint8_t pvNotifiedMessage[configMAX_NOTIFICATION_MESSAGE_SIZE_BYTES];		
-		volatile size_t	 xNotifiedMessageSize;
-		volatile uint8_t ucPendingMessage;
+		volatile size_t	 xNotifiedMessageSize;		
 	#endif
 
 	#if( configUSE_TASK_NOTIFICATIONS == 1 )
@@ -5029,10 +5028,10 @@ TickType_t uxReturn;
 /*-----------------------------------------------------------*/
 
 #if( configUSE_TASK_NOTIFICATION_MESSAGES == 1 )
-	void const* pvTaskNotifyWaitMessage(size_t* pxNotifiedMessageSize, TickType_t xTicksToWait )
+	BaseType_t xTaskNotifyWaitMessage(void* rxMessageBuffer, size_t rxMessageBufferSize, size_t* pxNotifiedMessageSize, TickType_t xTicksToWait )
 	{
 	
-		void const* pvReturn = NULL;
+		BaseType_t xReturn = pdFALSE;
 		
 		taskENTER_CRITICAL();
 		{
@@ -5076,11 +5075,20 @@ TickType_t uxReturn;
 			if( pxCurrentTCB->ucNotifyState != taskNOTIFICATION_RECEIVED )
 			{
 				/* A notification was not received. */
-				pvReturn = NULL;
+				xReturn = pdFALSE;
 			}
 			else
 			{
-				pvReturn = pxCurrentTCB->pvNotifiedMessage;
+				//xReturn = pxCurrentTCB->pvNotifiedMessage;
+				if(pxCurrentTCB->xNotifiedMessageSize <= rxMessageBufferSize){					
+					/* Can copy the message to the rx buffer */					
+					memcpy(rxMessageBuffer, pxCurrentTCB->pvNotifiedMessage, pxCurrentTCB->xNotifiedMessageSize);
+					xReturn = pdTRUE;
+				}
+				else{
+					/* Can't copy the message to the rx buffer */
+					xReturn = pdFALSE;
+				}
 			}
 			
 			/* Output received message size if wanted*/
@@ -5095,8 +5103,9 @@ TickType_t uxReturn;
 			
 		}
 		taskEXIT_CRITICAL();
-	
-		return pvReturn;
+		
+		return xReturn;
+			
 	}
 
 #endif /* configUSE_TASK_NOTIFICATION_MESSAGES */
